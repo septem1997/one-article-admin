@@ -34,7 +34,9 @@
     "moment": "^2.27.0",
     "@nestjs/config": "^0.5.0",
     "uuid": "^8.2.0",
-    "fs-extra": "^9.0.1"
+    "fs-extra": "^9.0.1",
+    "@nestjs/schedule": "latest",
+    "axios": "^0.21.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^7.0.0",
