@@ -23,24 +23,24 @@ export class AppService {
   ) {
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
-  async fetchPage() {
-    const res = await Axios.get('https://interface.meiriyiwen.com/article/random');
-    const article = new Article();
-    Object.assign(article, res.data.data);
-    const query = new Article();
-    query.title = article.title;
-    query.author = article.author;
-    const count = await this.articleRepository.count(query);
-    if (count > 0) {
-      // console.log('文章已存在:',article.title)
-      return;
-    }
-    // else {
-    //   console.log('下载文章:', article.title, res.data.data.date.curr);
-    // }
-    await this.articleRepository.save(article);
-  }
+  // @Cron(CronExpression.EVERY_MINUTE)
+  // async fetchPage() {
+  //   const res = await Axios.get('https://interface.meiriyiwen.com/article/random');
+  //   const article = new Article();
+  //   Object.assign(article, res.data.data);
+  //   const query = new Article();
+  //   query.title = article.title;
+  //   query.author = article.author;
+  //   const count = await this.articleRepository.count(query);
+  //   if (count > 0) {
+  //     // console.log('文章已存在:',article.title)
+  //     return;
+  //   }
+  //   // else {
+  //   //   console.log('下载文章:', article.title, res.data.data.date.curr);
+  //   // }
+  //   await this.articleRepository.save(article);
+  // }
 
   async getToday() {
     return await this.getByDate(moment().format('YYYY-MM-DD'))
