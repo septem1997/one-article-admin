@@ -5,8 +5,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Article } from './entity/article';
 import { Repository } from 'typeorm';
 import { ArticleDate } from './entity/articleDate';
+import { User } from './entity/user';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import * as moment from 'moment';
+import { Comment } from './entity/comment';
 
-const moment = require('moment');
 
 
 @Injectable()
@@ -20,27 +24,62 @@ export class AppService {
     private articleRepository: Repository<Article>,
     @InjectRepository(ArticleDate)
     private articleDateRepository: Repository<ArticleDate>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Comment)
+    private commentRepository: Repository<Comment>,
+    private readonly jwtService: JwtService,
   ) {
   }
 
-  // @Cron(CronExpression.EVERY_MINUTE)
-  // async fetchPage() {
-  //   const res = await Axios.get('https://interface.meiriyiwen.com/article/random');
-  //   const article = new Article();
-  //   Object.assign(article, res.data.data);
-  //   const query = new Article();
-  //   query.title = article.title;
-  //   query.author = article.author;
-  //   const count = await this.articleRepository.count(query);
-  //   if (count > 0) {
-  //     // console.log('文章已存在:',article.title)
-  //     return;
-  //   }
-  //   // else {
-  //   //   console.log('下载文章:', article.title, res.data.data.date.curr);
-  //   // }
-  //   await this.articleRepository.save(article);
-  // }
+
+  register(pass: string):Promise<string> {
+    const saltRounds = 10;
+    return bcrypt.hash(pass, saltRounds);
+  }
+
+  async login(userDto:User) {
+    const findUser = await this.findOne(userDto)
+    if (findUser){
+      const pwdIsCorrect = await bcrypt.compare(userDto.password, findUser.password)
+      if (pwdIsCorrect){
+        userDto.password = null
+        return {
+          token:'Bearer '+this.jwtService.sign(userDto),
+          username:findUser.username,
+        }
+      }else {
+        throw new HttpException('用户名或密码错误', HttpStatus.BAD_REQUEST);
+      }
+    }else {
+      throw new HttpException('找不到该用户', HttpStatus.NOT_FOUND);
+    }
+  }
+
+  async create(userDto: User) {
+    const query  = new User()
+    query.username = userDto.username
+    const findAdmin = await this.userRepository.findOne(query)
+    if (findAdmin){
+      throw new HttpException('该用户名已存在', HttpStatus.CONFLICT);
+    }
+    const user = new User()
+    const newPass = await this.register(userDto.password)
+    user.username = userDto.username
+    user.password = newPass
+    await this.userRepository.save(user)
+    userDto.password = null
+    return {
+      token:'Bearer '+this.jwtService.sign(userDto),
+      username:user.username
+    }
+  }
+
+  async findOne(userDto: User):Promise<User> {
+    const query = new User()
+    query.username = userDto.username
+    return await this.userRepository.findOne(query)
+  }
 
   async getToday() {
     return await this.getByDate(moment().format('YYYY-MM-DD'))
@@ -80,5 +119,36 @@ export class AppService {
       await this.articleDateRepository.save(articleDate)
       return articleDate.article
     }
+  }
+
+
+  createComment(user:User,comment:Comment){
+    const barrage = new Comment();
+    const article = new Article();
+    article.id = comment.articleId
+    if (comment.creator.id)
+    barrage.article = article
+    barrage.creator = user
+    barrage.content = comment.content
+    this.commentRepository.save(barrage)
+  }
+
+  async findCommentsByArticle(articleId:number): Promise<Comment[]> {
+    const list =  await this.commentRepository.createQueryBuilder('comment')
+      .select([
+        'comment.id',
+        'comment.content',
+        'creator.username',
+        'comment.createTime',
+        'comment.address'
+      ])
+      .leftJoin('barrage.creator', 'creator')
+      .leftJoin('barrage.article', 'article')
+      .where('article.id = :id', { id: articleId })
+      .getMany();
+    list.forEach((comment)=>{
+      comment.username = comment.creator?comment.creator.username:'匿名用户'
+    })
+    return list
   }
 }
