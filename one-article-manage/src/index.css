@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@font-face {
+    font-family: youyuan;
+    src: url("assets/font/youyuan.ttf");
+}
+*{
+    user-select: none;
+}
+html,body{
+    font-family: youyuan;
+    background: gray;
+}
